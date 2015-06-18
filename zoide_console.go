@@ -1,16 +1,16 @@
 package main
 
 import (
-	"fmt"
 	"bufio"
+	"fmt"
 	"os"
-	"strings"
 	"strconv"
+	"strings"
 	"subversion.ews.illinois.edu/svn/fa14-cs242/struckh2/Zoide/board"
 )
 
 // Get the coordinates from the user.
-func getCoord(in *bufio.Reader) (int,int) {
+func getCoord(in *bufio.Reader) (int, int) {
 	noQuit := true
 	var coords []string
 	for noQuit {
@@ -18,7 +18,7 @@ func getCoord(in *bufio.Reader) (int,int) {
 		if err != nil {
 			fmt.Println(err)
 		}
-		
+
 		input = strings.Trim(input, "\n")
 		coords = strings.Split(input, ",")
 		if len(coords) != 2 {
@@ -31,7 +31,7 @@ func getCoord(in *bufio.Reader) (int,int) {
 	y64, _ := strconv.ParseInt(coords[1], 10, 32)
 	x, y := int(x64), int(y64)
 	//fmt.Println(x,y, coords)
-	return x,y
+	return x, y
 }
 
 // Get the rotation from the user.
@@ -42,7 +42,7 @@ func getRotate(in *bufio.Reader) (int, int, bool) {
 		if err != nil {
 			fmt.Println(err)
 		}
-		
+
 		input = strings.Trim(input, "\n")
 		coords = strings.Split(input, ",")
 		if len(coords) != 3 {
@@ -56,18 +56,17 @@ func getRotate(in *bufio.Reader) (int, int, bool) {
 	rot, _ := strconv.ParseInt(coords[2], 10, 32)
 	x, y := int(x64), int(y64)
 	//fmt.Println(x,y, coords)
-	return x,y,rot == 0
+	return x, y, rot == 0
 }
 
 // Run the main game loop.
-func main() {
+func bmain() {
 	in := bufio.NewReader(os.Stdin)
 	b := board.MakeBoard(2)
 
 	player1 := true
 	for {
 		fmt.Println(b)
-		
 
 		tryAgain := true
 		for tryAgain {
@@ -76,15 +75,21 @@ func main() {
 			} else {
 				fmt.Print("Player 2 Coord: ")
 			}
-			x,y := getCoord(in)
-		
+			x, y := getCoord(in)
+
 			if player1 {
-				tryAgain = !b.PlacePiece(x,y, board.Red)
+				tryAgain = !b.PlacePiece(x, y, board.Red)
 			} else {
-				tryAgain = !b.PlacePiece(x,y, board.Blue)
+				tryAgain = !b.PlacePiece(x, y, board.Blue)
 			}
 		}
-		
+
+		win := TestWinner(b, 2, false)
+		if win[0] != board.None {
+			fmt.Println(b)
+			fmt.Println("Winner:", win)
+			break
+		}
 
 		fmt.Println(b)
 
@@ -95,13 +100,12 @@ func main() {
 			} else {
 				fmt.Print("Player 2 Rot: ")
 			}
-			
-			x,y,rot := getRotate(in)
-			tryAgain = !b.RotatePanel(x,y, rot)
-		}
-		
 
-		win := TestWinner(b, 2)
+			x, y, rot := getRotate(in)
+			tryAgain = !b.RotatePanel(x, y, rot)
+		}
+
+		win = TestWinner(b, 2, true)
 		if win[0] != board.None {
 			fmt.Println(b)
 			fmt.Println("Winner:", win)

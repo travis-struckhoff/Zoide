@@ -39,12 +39,13 @@
 ****************************************************************************/
 
 import QtQuick 2.0
+import QtQuick.Controls 1.2
 import "../Zoide" as Z
 
 Rectangle {
     id: screen
 
-    width: 400; height: 400
+    width: 600; height: 700
 
     SystemPalette { id: activePalette }
 
@@ -134,11 +135,11 @@ Rectangle {
         Item {
             id: gameCanvas
 
-            property int score: 0
-            property int blockSize: 40
+            //property int score: 0
+            property int blockSize: Math.min(parent.width, parent.height) / ((chooseBoard.currentIndex+2)*3)
 
-            width: parent.width - (parent.width % blockSize)
-            height: parent.height - (parent.height % blockSize)
+            width: blockSize*((chooseBoard.currentIndex+2)*3)//parent.width - (parent.width % blockSize)
+            height: blockSize*((chooseBoard.currentIndex+2)*3)//parent.height - (parent.height % blockSize)
             anchors.centerIn: parent
 
             MouseArea {
@@ -160,17 +161,44 @@ Rectangle {
         color: activePalette.window
         anchors.bottom: screen.bottom
 
+        property int numPlayers: playerPick.currentIndex
+
         Z.Button {
+            id: startGame
             anchors { left: parent.left; verticalCenter: parent.verticalCenter }
             text: "New Game"
-            onClicked: game.startNewGame(gameCanvas, dialog)
+            onClicked: game.startNewGame(gameCanvas, dialog, toolBar.numPlayers+1, chooseBoard.currentIndex+2)
+        }
+
+        ComboBox {
+            id: playerPick
+            anchors.left: startGame.right
+            currentIndex: 1
+            model: ListModel {
+                id: cbItems
+                ListElement { text: "1 Player" }
+                ListElement { text: "2 Player" }
+                ListElement { text: "3 Player" }
+                ListElement { text: "4 Player" }
+            }
+            //width: 200
+            //onCurrentIndexChanged: console.debug(cbItems.get(currentIndex).text)
+        }
+        ComboBox {
+            id: chooseBoard
+            anchors.left: playerPick.right
+            currentIndex: 0
+            model: ListModel {
+                ListElement { text: "Size 2"}
+                ListElement { text: "Size 3"}
+            }
         }
 
         Text {
             objectName: "score"
             id: score
             anchors { right: parent.right; verticalCenter: parent.verticalCenter }
-            text: "Score: Who knows?"
+            text: ""
         }
     }
 }

@@ -10,8 +10,24 @@ const (
 	Blue
 	Yellow
 	Green
+	Black
+	White
 	Tie 		// Tie players
 )
+
+func (p Player) GetPlayerString() string {
+	types := [...]string{
+		"No one",
+		"Red",
+		"Blue",
+		"Yellow",
+		"Green",
+		"Black",
+		"White",
+		"Tie",
+	}
+	return types[int(p)]
+}
 
 // Class for holding the 3x3 squares.
 type panel struct {
@@ -105,6 +121,12 @@ func (b *Board) RotatePanel(x, y int, direction bool) bool {
 		return false
 	}
 
+	// For now use inputs of 0 and 1, and scale with boardsize.
+	if b.size > 2 {
+		x = x*(b.size-1)
+		y = y*(b.size-1)
+	}
+
 	if direction {
 		b.board[y][x].RotateCClock()
 	} else {
@@ -143,4 +165,29 @@ func (b *Board) String() string {
 			output += "|---------------|\n"
 	}
 	return output
+}
+
+// Tells AI if the board is finished with moves.
+func (b *Board) IsLeaf() bool {
+	for x := 0; x < b.size*3; x++ {
+		for y := 0; y <b.size*3; y++ {
+			// Blank spots left to be filled.
+			if b.GetPiece(x, y) == None {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+// Return a copy of the board.
+func (b *Board) Copy() *Board {
+	newBoard := MakeBoard(b.size)
+
+	for x := 0; x < b.size*3; x++ {
+		for y := 0; y <b.size*3; y++ {
+			newBoard.PlacePiece(x, y, b.GetPiece(x,y))
+		}
+	}
+	return newBoard
 }

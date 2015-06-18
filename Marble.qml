@@ -42,13 +42,13 @@ Item {
 	                 "images/greenStone.png"
             	}
             }
-        },
-        State {
-            name: "emptyState"
-            when: exists == false
-            PropertyChanges { target: img; opacity: 0.1 }
-            PropertyChanges { target: img; source: 
-                "images/yellowStone.png"}
-        }
+        }//,
+        // State {
+        //     name: "emptyState"
+        //     when: exists == false
+        //     PropertyChanges { target: img; opacity: 0.1 }
+        //     PropertyChanges { target: img; source: 
+        //         "images/yellowStone.png"}
+        // }
     ]
 }
