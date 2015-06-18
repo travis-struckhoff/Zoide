@@ -1,0 +1,16 @@
+install go
+place in src directory
+
+To make gui:
+run: go build zoide.go procedures.go
+
+To make console:
+run: go build zoide_console.go procedures.go
+
+
+Sources and help for gui from:
+	The qml tutorial website.
+	http://qt-project.org/doc/qt-5/
+
+	For how to integrate with go.
+	https://github.com/tcoopman/samegame
