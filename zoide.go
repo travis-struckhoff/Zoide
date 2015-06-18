@@ -9,10 +9,10 @@ package main
 import (
 	"fmt"
 	"gopkg.in/qml.v1"
-
 	"os"
 	"subversion.ews.illinois.edu/svn/fa14-cs242/struckh2/Zoide/board"
 	"time"
+	"net"
 )
 
 type Game struct {
@@ -28,6 +28,12 @@ type Game struct {
 	twistTime   bool // Time for twisting panel.
 	numAI       int
 	aiPlaying   bool
+
+	// For multi over lan
+	lanGame 	bool
+	server 		bool
+	hostsTurn 	bool
+	conn 		*net.Conn
 }
 
 // Helper to decide who's turn. Keeps player within 1 and numPlayers inclusive.
@@ -44,7 +50,10 @@ func (g *Game) index(col, row int) int {
 	return col + (row * g.Model.Size() * 3)
 }
 
-func (g *Game) StartNewGame(parent, dialog qml.Object, numPlayers, boardSize int) {
+// Starts the game,
+// lan - is it over lan
+// host - am I the host
+func (g *Game) StartNewGame(parent, dialog qml.Object, numPlayers, boardSize int, lan, host bool, url string) {
 	for _, marble := range g.Board {
 		if marble != nil {
 			marble.Destroy()
@@ -77,16 +86,54 @@ func (g *Game) StartNewGame(parent, dialog qml.Object, numPlayers, boardSize int
 		}
 	}
 	g.started = true
+
+	// Defaults
+	g.lanGame = false
+	g.server = false
+	g.hostsTurn = true
+
+	if lan {
+		g.lanGame = true
+		if host {
+			// Start server
+			go CreateServer(g)
+			g.server = true
+
+		} else {
+			//runningServer = false
+			conn, err := Connect(url)
+			// Fix for weird multi assingment fluke ^
+			g.conn = conn
+			if err != nil {
+				os.Exit(1)
+			}
+		}
+	}
 }
 
 // Handle clicking on a marble location.
 func (g *Game) HandleClick(xPos, yPos int) {
-	if !g.started || g.twistTime || g.aiPlaying {
+	if !g.started || g.twistTime || g.aiPlaying || !g.hostsTurn {
 		return
 	}
 
 	col := xPos / g.Marble.Size
 	row := yPos / g.Marble.Size
+
+	// If lanGame do server stuff
+	if g.lanGame {
+		if !g.server {
+			// Issue the request to the server and wait for a response
+			action := LanAction{int(g.whichPlayer), col, row, -1, -1, false}
+			MakeRequest(g, action)
+			return
+		}
+
+		// Server stuff
+		action := LanAction{int(g.whichPlayer), col, row, -1, -1, false}
+		MakeResult(g, action)
+		return
+	}
 
 	g.placePieceInGame(col, row)
 }
@@ -107,7 +154,7 @@ func (g *Game) placePieceInGame(col, row int) bool {
 
 // Twist the panels with the buttons.
 func (g *Game) HandleArrows(arrow qml.Object) {
-	if !g.started || !g.twistTime || g.aiPlaying {
+	if !g.started || !g.twistTime || g.aiPlaying || !g.hostsTurn {
 		return
 	}
 	x := 0
@@ -134,19 +181,38 @@ func (g *Game) HandleArrows(arrow qml.Object) {
 		x, y, direction = offset, offset, false
 	}
 
-	g.rotateGamePanel(x, y, direction)
+	// If lanGame do server stuff
+	if g.lanGame {
+		if !g.server {
+			// Issue the request to the server and wait for a response
+			action := LanAction{int(g.whichPlayer), -1, -1, x, y, direction}
+			MakeRequest(g, action)
+			return
+		}
+
+		// Server stuff
+		action := LanAction{int(g.whichPlayer), -1, -1, x, y, direction}
+		MakeResult(g, action)
+		return
+	}
+
+	g.rotateGamePanel(x, y, direction)		
 
 	go g.AI() // Run the ai in another thread.
 }
 
-func (g *Game) rotateGamePanel(x, y int, direction bool) {
-	g.Model.RotatePanel(x, y, direction)
+func (g *Game) rotateGamePanel(x, y int, direction bool) bool {
+	success := g.Model.RotatePanel(x, y, direction)
+	if !success {
+		return false
+	}
 
 	g.RedrawBoard()
 	g.twistTime = false
 
 	g.checkForWin()
 	g.incPlayer()
+	return true
 }
 
 // Check if there is a win.
@@ -208,7 +274,9 @@ func (g *Game) AI() {
 		g.aiPlaying = true
 		g.dialog.Call("show", "AI's Turn...")
 
+		start := time.Now()
 		action := Alpha_beta_action(g, 2)
+		fmt.Println("Time: ", time.Since(start))
 		fmt.Println("Action: ", action)
 
 		g.placePieceInGame(action.placeX, action.placeY)
@@ -220,77 +288,6 @@ func (g *Game) AI() {
 		g.dialog.Call("hide")
 		g.aiPlaying = false
 	}
-}
-
-func (g *Game) AvailActions(b *board.Board, player board.Player) []Action {
-	actions := make([]Action, 0, (b.Size()*3)*(b.Size()*3))
-	for x := 0; x < b.Size()*3; x++ {
-		for y := 0; y < b.Size()*3; y++ {
-			for turnX := 0; turnX < 2; turnX++ {
-				for turnY := 0; turnY < 2; turnY++ {
-					// Append placing a marble here if available.
-					if b.GetPiece(x, y) == board.None {
-						cur_action := Action{
-							placeX:    x,
-							placeY:    y,
-							turnX:     turnX,
-							turnY:     turnY,
-							direction: true,
-						}
-						actions = append(actions, cur_action)
-						cur_action.direction = false
-						actions = append(actions, cur_action)
-					}
-				}
-			}
-		}
-	}
-	Permute(actions)
-	return actions
-}
-
-// Return the next state from taking the action.
-func (g *Game) ResultState(b *board.Board, action Action, player board.Player) *board.Board {
-	// Take the action on a copy of the state.
-	newState := b.Copy()
-	newState.PlacePiece(action.placeX, action.placeY, player)
-	newState.RotatePanel(action.turnX, action.turnY, action.direction)
-
-	return newState
-}
-
-// Some weights for utility.
-const (
-	WIN  = 1000
-	LOST = -1000
-	TIE  = 0
-	// Guesses:
-	GWIN   = 500
-	GLOST  = -500
-	ALMOST = 50
-	CLOSE  = 1
-)
-
-func (g *Game) Utility(b *board.Board, player board.Player) int {
-	winners := TestWinner(b, g.numPlayers, true)
-
-	if winners[0] == player {
-		return WIN
-	} else if winners[0] == board.Tie {
-		for _, p := range winners[1:] {
-			if p == player {
-				return TIE
-			}
-		}
-	}
-	return LOST
-}
-
-// Guess how much the state is worth. Heuristics...
-func (g *Game) Evaluation(b *board.Board, player board.Player) int {
-	eval := ComputeEval(b, player)
-
-	return eval
 }
 
 // Marble access struct.

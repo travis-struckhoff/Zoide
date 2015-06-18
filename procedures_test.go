@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	//"fmt"
 	"subversion.ews.illinois.edu/svn/fa14-cs242/struckh2/Zoide/board"
 	"testing"
 )
@@ -111,9 +111,8 @@ func TestWeirdGreen(t *testing.T) {
 }
 
 func TestPermute(t *testing.T) {
-	g := Game{}
 	b := board.MakeBoard(2)
-	actions := g.AvailActions(b, board.Red)
+	actions := AvailActions(b, board.Red)
 	// Can't test deterministicaly.
 	// fmt.Println(actions)
 	Permute(actions)

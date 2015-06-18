@@ -167,7 +167,8 @@ Rectangle {
             id: startGame
             anchors { left: parent.left; verticalCenter: parent.verticalCenter }
             text: "New Game"
-            onClicked: game.startNewGame(gameCanvas, dialog, toolBar.numPlayers+1, chooseBoard.currentIndex+2)
+            onClicked: game.startNewGame(gameCanvas, 
+                dialog, toolBar.numPlayers+1, chooseBoard.currentIndex+2, false, false, "localhost:8080")
         }
 
         ComboBox {
